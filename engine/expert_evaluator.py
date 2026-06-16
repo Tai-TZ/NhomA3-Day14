@@ -25,8 +25,7 @@ class ExpertEvaluator:
     def __init__(self, top_k: int = 3, use_ragas: bool = True):
         self.retrieval = RetrievalEvaluator()
         self.top_k = top_k
-        has_api = bool(os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY"))
-        self.use_ragas = use_ragas and RAGAS_AVAILABLE and has_api and os.getenv("USE_RAGAS_LIVE") == "1"
+        self.use_ragas = use_ragas and RAGAS_AVAILABLE and bool(os.getenv("OPENAI_API_KEY"))
 
     def _heuristic_faithfulness(self, answer: str, contexts: list) -> float:
         if not answer or not contexts:

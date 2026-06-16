@@ -3,10 +3,6 @@ import json
 import os
 import time
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from engine.runner import BenchmarkRunner
 from engine.expert_evaluator import ExpertEvaluator
 from engine.llm_judge import MultiModelJudge
@@ -35,7 +31,7 @@ async def run_benchmark_with_results(agent, agent_version: str):
         agent,
         ExpertEvaluator(top_k=3),
         MultiModelJudge(),
-        batch_size=5,
+        batch_size=10,
     )
 
     bench_start = time.perf_counter()
