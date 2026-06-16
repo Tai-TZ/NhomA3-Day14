@@ -25,7 +25,7 @@
 
 - **Cohen's Kappa / Agreement Rate:** Hệ thống Multi-Judge của nhóm tính độ đồng thuận như thế nào?
   - Hệ thống của nhóm sử dụng hai phương thức đo lường độ đồng thuận bổ trợ cho nhau:
-    1. **Agreement Rate (per-case):** Tính tỷ lệ gần nhau giữa điểm của hai Judge (ví dụ lệch 0 điểm tương ứng với 100% đồng thuận, lệch càng nhiều phần trăm đồng thuận càng giảm).
+    1. **Agreement Rate (per-case):** Tính tỷ lệ gần nhau giữa điểm của hai Judge (ví dụ lệch 0 điểm tương ứng với 100% đồng thuận, lệch càng nhiều phần trạng đồng thuận càng giảm).
     2. **Cohen's Kappa (batch):** Đo lường mức độ đồng ý giữa hai Judge (GPT-4o chấm accuracy và Claude chấm tone) sau khi đã loại bỏ khả năng đồng ý do ngẫu nhiên: $\kappa = \frac{P_o - P_e}{1 - P_e}$ (trong đó $P_o$ là độ đồng thuận quan sát được thực tế, và $P_e$ là độ đồng thuận dự kiến do ngẫu nhiên).
   - Điểm Cohen's Kappa đặc biệt quan trọng vì nếu cả hai Judge đều có xu hướng thiên vị (luôn cho điểm cao), Agreement Rate sẽ rất cao nhưng Cohen's Kappa sẽ rất thấp, phản ánh rằng sự đồng thuận đó không thực sự có ý nghĩa kiểm chuẩn.
 
