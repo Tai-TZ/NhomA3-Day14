@@ -6,6 +6,7 @@ import time
 from engine.runner import BenchmarkRunner
 from engine.expert_evaluator import ExpertEvaluator
 from engine.llm_judge import MultiModelJudge
+from engine.judge_calibration import JudgeCalibration
 from engine.release_gate import ReleaseGate
 from agent.main_agent import MainAgent, MainAgentV2
 
@@ -39,6 +40,7 @@ async def run_benchmark_with_results(agent, agent_version: str):
 
     total = len(results)
     performance = BenchmarkRunner.summarize_performance(results)
+    calibration = JudgeCalibration.summarize(results)
 
     summary = {
         "metadata": {
@@ -55,8 +57,11 @@ async def run_benchmark_with_results(agent, agent_version: str):
             "avg_faithfulness": round(sum(r["ragas"]["faithfulness"] for r in results) / total, 4),
             "avg_relevancy": round(sum(r["ragas"]["relevancy"] for r in results) / total, 4),
             "conflicts_resolved": sum(1 for r in results if r["judge"].get("conflict_resolved")),
+            "cohens_kappa": calibration["cohens_kappa"],
+            "conflict_rate": calibration["conflict_rate"],
             **performance,
         },
+        "judge_calibration": calibration,
     }
     return results, summary
 
@@ -85,6 +90,7 @@ async def main():
     print(f"Hit Rate:       {v2_summary['metrics']['hit_rate']*100:.1f}%")
     print(f"Avg MRR:        {v2_summary['metrics']['avg_mrr']:.3f}")
     print(f"Agreement Rate: {v2_summary['metrics']['agreement_rate']*100:.1f}%")
+    print(f"Cohen's Kappa:  {v2_summary['metrics'].get('cohens_kappa', 0):.3f}")
     print(f"Latency:        {v2_summary['metadata']['benchmark_duration_sec']}s total")
     print(f"Cost:           ${v2_summary['metrics']['estimated_cost_usd']:.6f}")
     print(f"Delta Score:    {'+' if gate_result['score_delta'] >= 0 else ''}{gate_result['score_delta']:.2f}")
