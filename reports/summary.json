@@ -1,0 +1,89 @@
+{
+  "metadata": {
+    "version": "Agent_V2_Optimized",
+    "total": 50,
+    "timestamp": "2026-06-16 15:13:52",
+    "benchmark_duration_sec": 0.232
+  },
+  "metrics": {
+    "avg_score": 4.025,
+    "hit_rate": 0.92,
+    "avg_mrr": 0.886,
+    "agreement_rate": 0.585,
+    "avg_faithfulness": 0.8247,
+    "avg_relevancy": 0.5571,
+    "conflicts_resolved": 6,
+    "total_latency_sec": 2.241,
+    "avg_latency_sec": 0.0448,
+    "total_tokens": 7358,
+    "estimated_cost_usd": 0.001093,
+    "pass_rate": 0.88
+  },
+  "regression": {
+    "v1": {
+      "avg_score": 3.955,
+      "hit_rate": 0.92,
+      "avg_mrr": 0.876,
+      "agreement_rate": 0.579,
+      "avg_faithfulness": 0.8256,
+      "avg_relevancy": 0.5511,
+      "conflicts_resolved": 7,
+      "total_latency_sec": 3.026,
+      "avg_latency_sec": 0.0605,
+      "total_tokens": 8144,
+      "estimated_cost_usd": 0.001221,
+      "pass_rate": 0.86
+    },
+    "gate_result": {
+      "decision": "APPROVE",
+      "score_delta": 0.07,
+      "checks": [
+        {
+          "name": "score_delta",
+          "passed": true,
+          "value": 0.07,
+          "threshold": 0.0
+        },
+        {
+          "name": "min_avg_score",
+          "passed": true,
+          "value": 4.025,
+          "threshold": 3.0
+        },
+        {
+          "name": "min_hit_rate",
+          "passed": true,
+          "value": 0.92,
+          "threshold": 0.65
+        },
+        {
+          "name": "min_mrr",
+          "passed": true,
+          "value": 0.886,
+          "threshold": 0.45
+        },
+        {
+          "name": "min_agreement_rate",
+          "passed": true,
+          "value": 0.585,
+          "threshold": 0.5
+        },
+        {
+          "name": "max_cost_increase",
+          "passed": true,
+          "value": -0.105,
+          "threshold": 0.25
+        },
+        {
+          "name": "max_latency_increase",
+          "passed": true,
+          "value": -0.254,
+          "threshold": 0.3
+        }
+      ],
+      "failed_checks": [],
+      "v1_version": "Agent_V1_Base",
+      "v2_version": "Agent_V2_Optimized"
+    }
+  }
+}

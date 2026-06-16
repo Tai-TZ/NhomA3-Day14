@@ -1,6 +1,17 @@
 .env
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
 __pycache__/
 *.pyc
 .DS_Store
-reports/
+
+# Generated at runtime — grader chạy synthetic_gen.py trước
 data/golden_set.jsonl
+
+# reports/ CẦN commit khi nộp bài (README checklist mục 2)
+# Chạy main.py trước commit để có summary.json + benchmark_results.json

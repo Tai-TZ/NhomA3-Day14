@@ -56,9 +56,19 @@ Báo cáo 5 Whys phải chỉ ra được lỗi nằm ở đâu: Ingestion pipel
 
 ## 🔧 Hướng dẫn chạy
 
+> **Lưu ý Python:** `ragas` **không hỗ trợ Python 3.14** trên Windows. Dùng **Python 3.12** + virtual environment:
+
 ```bash
-# 1. Cài đặt dependencies
+# 0. Tạo môi trường ảo Python 3.12 (chỉ lần đầu)
+py -3.12 -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate   # macOS/Linux
+
+# 1. Cài đặt dependencies (ragas, openai, pandas, ...)
 pip install -r requirements.txt
+
+# Nếu lỗi import ragas, cài phiên bản ổn định:
+# pip install "ragas==0.1.21"
 
 # 2. Tạo Golden Dataset (chạy trước khi benchmark)
 python data/synthetic_gen.py
@@ -69,6 +79,8 @@ python main.py
 # 4. Kiểm tra định dạng trước khi nộp
 python check_lab.py
 ```
+
+**RAGAS với API (tùy chọn):** Tạo file `.env` với `OPENAI_API_KEY=sk-...` để Eval Engine dùng RAGAS metrics thật (faithfulness, answer_relevancy). Không có key → tự động dùng heuristic fallback.
 
 ---
 
