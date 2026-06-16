@@ -11,19 +11,23 @@
 | Chỉ số | V1 (Base) | V2 (Optimized) | Delta |
 |--------|:---------:|:--------------:|:-----:|
 | Tổng số cases | 50 | 50 | — |
-| Pass / Fail | 43 / 7 (86%) | 44 / 6 (88%) | +1 pass |
-| LLM-Judge trung bình | 3.96 / 5.0 | 4.03 / 5.0 | +0.07 |
+| Pass / Fail | 37 / 13 (74%) | 37 / 13 (74%) | 0 |
+| LLM-Judge trung bình | 3.82 / 5.0 | 3.88 / 5.0 | +0.06 |
 | Hit Rate @ top-3 | 92.0% | 92.0% | 0 |
 | MRR trung bình | 0.876 | 0.886 | +0.01 |
-| Faithfulness (RAGAS) | 0.826 | 0.825 | -0.001 |
-| Relevancy (RAGAS) | 0.551 | 0.557 | +0.006 |
-| Agreement Rate (Multi-Judge) | 57.9% | 58.5% | +0.6% |
-| Conflicts resolved | 7 | 6 | -1 |
-| Benchmark duration | 3.02s | 0.23s | -23% |
+| Faithfulness (RAGAS/heuristic) | 0.826 | 0.825 | -0.001 |
+| Relevancy (RAGAS/heuristic) | 0.551 | 0.557 | +0.006 |
+| Agreement Rate (Multi-Judge) | 61.8% | 61.8% | 0 |
+| Cohen's Kappa | 0.066 | 0.049 | -0.017 |
+| Conflicts resolved | 9 | 9 | 0 |
+| Benchmark duration | ~99s | 72.12s | -27% |
 | Total tokens | 8,144 | 7,358 | -10.5% |
 | Estimated cost | $0.001221 | $0.001093 | -10.5% |
+| Judge mode | OpenRouter live | OpenRouter live | — |
 
-**Release Gate:** ✅ APPROVE — V2 cải thiện score, giảm cost/latency, đạt tất cả ngưỡng chất lượng.
+**Release Gate:** ✅ APPROVE — V2 cải thiện score (+0.06), giảm cost/latency, đạt tất cả 7 ngưỡng chất lượng.
+
+> Benchmark chạy với Multi-Judge thật qua OpenRouter (`openai/gpt-4o-mini` + `anthropic/claude-3.5-haiku`). RAGAS metrics dùng heuristic fallback (50 cases × RAGAS live quá chậm/tốn kém).
 
 ### Mối liên hệ Retrieval Quality ↔ Answer Quality
 
@@ -31,7 +35,7 @@ Phân tích 50 cases cho thấy:
 - **Cases retrieval hit (hit_rate=1):** avg judge score = **4.2** / 5.0
 - **Cases retrieval miss (hit_rate=0):** avg judge score = **1.5** / 5.0
 
-→ Retrieval miss gần như luôn dẫn đến câu trả lời sai hoặc không an toàn. **92% Hit Rate** giải thích vì sao pass rate đạt 88%, nhưng 4 cases retrieval fail đều thuộc nhóm **adversarial / out-of-context** — retriever bị nhiễu bởi keyword trong câu hỏi tấn công.
+→ Retrieval miss gần như luôn dẫn đến câu trả lời sai hoặc không an toàn. **92% Hit Rate** nhưng pass rate chỉ **74%** vì Judge live (OpenRouter) chấm khắt hơn heuristic — 4 cases retrieval fail thuộc nhóm **adversarial / out-of-context**, retriever bị nhiễu bởi keyword trong câu hỏi tấn công.
 
 ---
 
@@ -41,7 +45,7 @@ Phân tích 50 cases cho thấy:
 |----------|:--------:|:------:|---------------------|
 | **Adversarial / Safety** | 4 | 8% | Retriever match keyword ngẫu nhiên ("instructions", "admin"), Agent không từ chối |
 | **Out-of-context** | 2 | 4% | Agent bịa câu trả lời thay vì nói "không tìm thấy" |
-| **Judge Conflict** | 6 | 12% | GPT-4o (accuracy) vs Claude (tone) chấm lệch >1 điểm |
+| **Judge Conflict** | 9 | 18% | gpt-4o-mini (accuracy) vs claude-3.5-haiku (tone) chấm lệch >1 điểm |
 | **Retrieval Miss** | 4 | 8% | Keyword matching không phân biệt intent tấn công vs câu hỏi thật |
 
 ---
@@ -85,7 +89,8 @@ Phân tích 50 cases cho thấy:
 
 ## 4. Kế hoạch cải tiến (Action Plan)
 
-- [x] V2: Synonym expansion + faster async batch (batch_size=10) → giảm 10.5% cost, 23% latency
+- [x] V2: Synonym expansion + async batch (batch_size=5 với OpenRouter live) → giảm 10.5% cost, 27% benchmark duration
+- [x] Tích hợp OpenRouter Multi-Judge live — `judge_mode: openrouter_live` trong reports
 - [ ] Thêm **Safety Guard** layer trước retrieval (detect injection / hijacking)
 - [ ] Cập nhật **System Prompt**: "Chỉ trả lời trong phạm vi context; từ chối yêu cầu ngoài phạm vi"
 - [ ] Thêm **Retrieval confidence threshold** — nếu top-1 score < ngưỡng → skip generation
@@ -98,8 +103,8 @@ Phân tích 50 cases cho thấy:
 
 Hệ thống Evaluation Factory đã chứng minh:
 1. **Retrieval metrics** (Hit Rate 92%, MRR 0.886) tương quan mạnh với answer quality
-2. **Multi-Judge** phát hiện 6 xung đột scoring — conservative resolution tránh over-score
-3. **Regression Gate** tự động APPROVE V2 với cải thiện score (+0.07) và giảm cost (-10.5%)
+2. **Multi-Judge live** (OpenRouter) phát hiện 9 xung đột scoring (18%) — conservative resolution tránh over-score
+3. **Regression Gate** tự động APPROVE V2 với cải thiện score (+0.06) và giảm cost (-10.5%)
 4. **Failure clustering** chỉ ra root cause tập trung ở Safety/Prompting, không phải Async infrastructure
 
 Nhóm A3 sẵn sàng nộp bài với 50 test cases, reports đầy đủ, và failure analysis có chiều sâu.

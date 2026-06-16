@@ -17,7 +17,8 @@
 | `engine/expert_evaluator.py` | `ExpertEvaluator`: kết hợp Retrieval metrics + RAGAS (faithfulness, answer_relevancy) + heuristic fallback |
 | `engine/runner.py` | `BenchmarkRunner`: async batch với `asyncio.gather`, tracking latency / tokens / cost |
 | `agent/main_agent.py` | Bổ sung `retrieved_ids` trong response để tính Hit Rate/MRR |
-| `main.py` | Tích hợp `ExpertEvaluator` + `BenchmarkRunner.summarize_performance()` vào pipeline |
+| `main.py` | Tích hợp `ExpertEvaluator` + `BenchmarkRunner.summarize_performance()` + `load_dotenv()` |
+| `engine/openrouter_client.py` | Client OpenRouter cho Multi-Judge live |
 | `check_lab.py` | Validate retrieval metrics, performance, 50+ cases |
 | `README.md` | Hướng dẫn Python 3.12 + venv cho RAGAS |
 
@@ -37,19 +38,20 @@
 **Eval Engine (`ExpertEvaluator`):**
 
 - Gọi `RetrievalEvaluator` **trước** RAGAS metrics — đúng yêu cầu README: chứng minh Retrieval stage trước khi đánh giá Generation.
-- Tích hợp thư viện **RAGAS** (`faithfulness`, `answer_relevancy`) khi có `OPENAI_API_KEY`; fallback heuristic khi không có key → pipeline vẫn chạy được trong lab.
+- Tích hợp thư viện **RAGAS** (`faithfulness`, `answer_relevancy`) khi có API key + `USE_RAGAS_LIVE=1`; fallback heuristic mặc định → pipeline vẫn chạy nhanh trong lab batch 50 cases.
+- Hỗ trợ **OpenRouter** (`OPENROUTER_API_KEY` + `OPENAI_BASE_URL`) cho Multi-Judge live qua `engine/openrouter_client.py`.
 - Mỗi case trả về `eval_mode: "ragas" | "heuristic_fallback"` để traceability.
 
 **Async Runner (`BenchmarkRunner`):**
 
-- `run_all()` chia dataset thành batch (mặc định `batch_size=10`), mỗi batch chạy `asyncio.gather` — 50 cases hoàn thành trong **~0.18s** (<< 2 phút).
+- `run_all()` chia dataset thành batch (`batch_size=5` với OpenRouter live, `10` với mock), mỗi batch chạy `asyncio.gather` — 50 cases hoàn thành trong **72.12s** với Judge API thật (<< 2 phút).
 - Mỗi case track: `latency_sec`, `tokens_used`, `cost_usd` (ước tính GPT-4o-mini pricing).
 - `summarize_performance()` aggregate: `total_latency_sec`, `total_tokens`, `estimated_cost_usd`, `pass_rate`.
 
 **Trade-off thiết kế:**
 
-- Chọn `batch_size=10` thay vì chạy tuần tự → giảm ~80% wall-clock time; tăng nhẹ risk rate limit nếu dùng API thật → chấp nhận được với mock agent.
-- Heuristic fallback thay vì bắt buộc API → tiết kiệm chi phí lab, vẫn giữ cấu trúc RAGAS sẵn sàng production.
+- Chọn `batch_size=5` khi dùng OpenRouter live → cân bằng tốc độ vs rate limit (100 judge calls / 50 cases); mock agent vẫn có thể dùng `batch_size=10`.
+- Heuristic fallback cho RAGAS, live API cho Multi-Judge → tiết kiệm chi phí RAGAS (~$0.001/case) nhưng vẫn có judge scores thật trong report.
 
 ---
 
@@ -89,14 +91,14 @@ Nhóm dùng **2 lớp metrics** (module Multi-Judge do Ánh triển khai, tôi t
    - Lệch ≤ 0.5 → 0.85
    - Lệch ≤ 1.0 → 0.6
    - Lệch > 1.0 → 0.3
-   - Trung bình 50 cases → **58.5%** trong `summary.json`
+   - Trung bình 50 cases → **61.8%** trong `summary.json` (OpenRouter live)
 
 2. **Cohen's Kappa (batch)** — trong `judge_calibration.cohens_kappa()` (module Ánh):
    - Chuẩn hóa điểm 2 judge về thang 1–5
    - `κ = (P_o - P_e) / (1 - P_e)` — loại bỏ đồng thuận do ngẫu nhiên
    - κ > 0.6 = substantial agreement; κ > 0.8 = almost perfect
 
-**Liên hệ với phần Retrieval của tôi:** Khi retrieval fail → answer sai → 2 judge (accuracy vs tone) chấm lệch lớn → trigger conflict resolution → `conflict_rate = 12%` (6/50 cases). Retrieval metrics giúp **giải thích nguyên nhân** xung đột judge, không chỉ báo cáo con số.
+**Liên hệ với phần Retrieval của tôi:** Khi retrieval fail → answer sai → 2 judge live (gpt-4o-mini accuracy vs claude-3.5-haiku tone) chấm lệch lớn → trigger conflict resolution → `conflict_rate = 18%` (9/50 cases), Cohen's Kappa = 0.049. Retrieval metrics giúp **giải thích nguyên nhân** xung đột judge, không chỉ báo cáo con số.
 
 ---
 
@@ -121,9 +123,10 @@ Benchmark V1 → V2 đã chứng minh một phần đề xuất này:
 | Metric | V1 | V2 | Delta |
 |--------|----|----|-------|
 | Cost | $0.001221 | $0.001093 | **-10.5%** |
-| Latency | 2.78s | 1.75s | **-37%** |
+| Benchmark duration | ~99s | 72.12s | **-27%** |
 | Hit Rate | 92% | 92% | 0 |
-| Avg Score | 3.96 | 4.03 | +0.07 |
+| Avg Score | 3.82 | 3.88 | +0.06 |
+| Pass rate | 74% | 74% | 0 |
 
 **3 chiến lược giảm thêm ~30% cost (tổng ~40%) mà không giảm accuracy:**
 
@@ -163,6 +166,12 @@ Benchmark V1 → V2 đã chứng minh một phần đề xuất này:
 - **Cách xử lý:** Thêm `sys.path.insert(0, project_root)` vào đầu script — pattern chuẩn cho Python script chạy trực tiếp.
 - **Bài học:** Dùng package import cần đảm bảo PYTHONPATH hoặc chạy qua `python -m data.synthetic_gen`.
 
+### Vấn đề 5: Multi-Judge mock không đủ thuyết phục khi nộp bài Expert
+
+- **Triệu chứng:** `llm_judge.py` ban đầu dùng heuristic token overlap — Agreement Rate và scores không phản ánh judge thật.
+- **Cách xử lý:** Tạo `engine/openrouter_client.py`, cấu hình `.env` với OpenRouter API key, cập nhật `LLMJudge` gọi `openai/gpt-4o-mini` + `anthropic/claude-3.5-haiku`, thêm `judge_mode: openrouter_live` vào report.
+- **Bài học:** Evaluation Factory production cần live judge ít nhất cho submission; heuristic giữ làm fallback khi API fail.
+
 ---
 
 ## 5. Tự đánh giá
@@ -171,10 +180,10 @@ Benchmark V1 → V2 đã chứng minh một phần đề xuất này:
 |----------|:---------------------:|---------|
 | Engineering Contribution | **5** | Triển khai 3 module core (Retrieval, Eval Engine, Async Runner), tích hợp RAGAS, commit `4de4e60` |
 | Technical Depth | **4** | Giải thích được MRR, Cohen's Kappa, Position Bias, cost trade-off với số liệu thực từ benchmark |
-| Problem Solving | **5** | Xử lý 4 vấn đề thực tế: Python version, Agent contract, gitignore, module import |
+| Problem Solving | **5** | Xử lý 5 vấn đề thực tế: Python version, Agent contract, gitignore, module import, OpenRouter integration |
 
 **Tổng ước lượng:** ~36–38 / 40 điểm cá nhân.
 
 ---
 
-*Báo cáo được viết dựa trên module thực tế đã triển khai và kết quả benchmark trong `reports/summary.json` (50 cases, Hit Rate 92%, MRR 0.886, APPROVE).*
+*Báo cáo được viết dựa trên module thực tế đã triển khai và kết quả benchmark OpenRouter live trong `reports/summary.json` (50 cases, Hit Rate 92%, MRR 0.886, Agreement 61.8%, duration 72.12s, APPROVE).*
